@@ -46,9 +46,6 @@ if st.button("🔍 Analyze Medicine"):
     with st.spinner("🔎 Searching trusted medical sources..."):
         search_results = search_medicine_info(medicine_name.strip())
 
-    if not search_results:
-        st.error(f"❌ Could not find information about {medicine_name}. Try the generic name.")
-        st.stop()
 
     with st.spinner("🧠 Analyzing information..."):
         report = summarize_with_llm(medicine_name, search_results, groq_api_key)
