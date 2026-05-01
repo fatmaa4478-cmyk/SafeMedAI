@@ -5,42 +5,42 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 MAX_TOKENS   = 1800
 
-SYSTEM_PROMPT = """You are SafeMedAI, a careful and accurate medicine information assistant.
+SYSTEM_PROMPT = """You are SafeMedAI, an accurate and helpful medicine information assistant.
 
-CRITICAL RULE: You must answer ONLY about the EXACT medicine the user asked about.
-Use your own medical knowledge to VERIFY and CORRECT the search results.
-If the search results contain wrong information about a different medicine or formulation, IGNORE that information and use your own knowledge instead.
+You have deep medical knowledge. When asked about a medicine, provide accurate information
+based on your training data from trusted medical sources like WHO, FDA, NHS, Mayo Clinic.
 
-For example:
-- "Artelac Advanced" is an EYE DROP for dry eyes — NOT a knee injection
-- Always identify what form the medicine is (eye drop, tablet, injection, syrup etc.)
-- Only include uses that match that specific form
+STRICT RULES:
+- Only provide information about the EXACT medicine asked about
+- Identify the correct form (eye drops, tablet, syrup, injection etc.)
+- Never mix information from different medicines or formulations
+- Use simple everyday language that patients can understand
+- If you are not sure about something, say so honestly
 
-Return ONLY a valid JSON object:
+Return ONLY a valid JSON object with these exact keys:
 {
-  "medicine_name": "exact medicine name with form e.g. Artelac Advanced Eye Drops",
-  "used_for": "correct uses of THIS specific medicine form only",
-  "side_effects": "side effects of THIS specific form only",
-  "warnings": "warnings for THIS specific form only",
-  "food_interactions": "interactions for THIS specific form only",
-  "storage": "storage for THIS specific form",
-  "consult_doctor": "when to see a doctor for THIS medicine",
-  "summary": "2-3 sentence accurate overview of THIS exact medicine"
+  "medicine_name": "Full name with form e.g. Artelac Advanced Eye Drops",
+  "used_for": "What this exact medicine treats",
+  "side_effects": "Common side effects of this medicine",
+  "warnings": "Important warnings and precautions",
+  "food_interactions": "Foods or drinks to avoid, or state if none known",
+  "storage": "How to store this medicine",
+  "consult_doctor": "Situations when patient must see a doctor",
+  "summary": "2-3 sentence simple overview of this medicine"
 }
 
-No extra text. No markdown. JSON only."""
+Return ONLY the JSON. No extra text. No markdown. No code blocks."""
+
 
 def summarize_with_llm(medicine_name: str, search_text: str, api_key: str) -> dict:
-    """Send search results to Groq LLM and get a structured medicine report."""
-    user_message = f"""The user is asking about this EXACT medicine: "{medicine_name}"
+    """Use Groq LLM to generate medicine information from its own knowledge."""
 
-IMPORTANT: Only provide information about "{medicine_name}" specifically.
-Do NOT mix in information about other medicines, even if they share ingredients.
+    user_message = f"""Provide complete and accurate medicine information about: "{medicine_name}"
 
-Here are the search results to analyze:
-{search_text[:6000]}
+Use your medical knowledge from trusted sources like FDA, WHO, NHS, Mayo Clinic.
+Be specific to THIS medicine only. Do not mix with other medicines.
 
-Now generate the JSON report ONLY about "{medicine_name}":"""
+Generate the JSON report now:"""
 
     try:
         headers = {
@@ -54,9 +54,14 @@ Now generate the JSON report ONLY about "{medicine_name}":"""
                 {"role": "user",   "content": user_message}
             ],
             "max_tokens": MAX_TOKENS,
-            "temperature": 0.1,  # Very low = more accurate, less creative
+            "temperature": 0.1,
         }
-        response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
+        response = requests.post(
+            GROQ_API_URL,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
         response.raise_for_status()
         ai_text = response.json()["choices"][0]["message"]["content"].strip()
         return _parse_llm_response(ai_text)
@@ -83,12 +88,12 @@ def _parse_llm_response(ai_text: str) -> dict:
     except Exception:
         pass
     return {
-        "medicine_name": "Unknown",
-        "used_for": "Could not parse information.",
+        "medicine_name": medicine_name,
+        "used_for": "Could not retrieve information. Please try again.",
         "side_effects": "Information not available.",
         "warnings": "Please consult a healthcare professional.",
         "food_interactions": "Information not available.",
         "storage": "Store according to package instructions.",
         "consult_doctor": "Always consult your doctor before taking any medicine.",
-        "summary": "We found some information but had trouble formatting it. Please try again."
+        "summary": "Could not generate report. Please try again."
     }
