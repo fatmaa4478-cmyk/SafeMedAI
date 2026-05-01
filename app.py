@@ -54,9 +54,11 @@ if st.button("🔍 Analyze Medicine"):
         st.error("❌ AI summarization failed. Check your API key and try again.")
         st.stop()
 
-    urdu_report = None
+   urdu_report = None
     if "Urdu" in language:
         with st.spinner("🌐 Translating to Urdu..."):
             urdu_report = translate_to_urdu(report, groq_api_key)
+        if not urdu_report:
+            st.warning("⚠️ Urdu translation failed. Showing English report only.")
 
     display_medicine_report(medicine_name, report, urdu_report)
