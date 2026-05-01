@@ -15,13 +15,13 @@ REQUEST_TIMEOUT = 10
 
 
 def search_medicine_info(medicine_name: str) -> str:
-    """Search for medicine info using multiple specific queries."""
+    """Search for medicine info from trusted sources."""
 
-    # Multiple targeted queries — brand name specific
+    # Simple straightforward queries
     queries = [
-        f"{medicine_name} eye drops uses side effects",
-        f"{medicine_name} drug information",
-        f"{medicine_name} medicine what is it used for",
+        f"{medicine_name} medicine",
+        f"{medicine_name} uses side effects",
+        f"what is {medicine_name}",
     ]
 
     all_urls = []
@@ -30,28 +30,18 @@ def search_medicine_info(medicine_name: str) -> str:
         for url in urls:
             if url not in all_urls:
                 all_urls.append(url)
+        if len(all_urls) >= 10:
+            break
 
     if not all_urls:
         return ""
 
-    # Filter: keep only URLs that contain the medicine name in the URL
-    medicine_slug = medicine_name.lower().replace(" ", "")
-    relevant_urls = [
-        u for u in all_urls
-        if any(word.lower() in u.lower()
-               for word in medicine_name.split())
-    ]
-
-    # If no relevant URLs found, fall back to all URLs
-    if not relevant_urls:
-        relevant_urls = all_urls
-
     # Prioritize trusted domains
-    trusted_urls = _prioritize_trusted(relevant_urls)
+    trusted_urls = _prioritize_trusted(all_urls)
 
     collected_text = []
     for url in trusted_urls[:MAX_RESULTS]:
-        content = _extract_page_content(url, medicine_name)
+        content = _extract_page_content(url)
         if content and len(content) > 200:
             collected_text.append(f"SOURCE: {url}\n{content}")
             time.sleep(0.5)
@@ -95,8 +85,8 @@ def _prioritize_trusted(urls: list) -> list:
     return trusted + others
 
 
-def _extract_page_content(url: str, medicine_name: str = "") -> str:
-    """Visit a URL and extract only relevant content about the medicine."""
+def _extract_page_content(url: str) -> str:
+    """Visit a URL and extract clean text content."""
     try:
         headers = {
             "User-Agent": (
@@ -110,7 +100,6 @@ def _extract_page_content(url: str, medicine_name: str = "") -> str:
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Remove clutter
         for tag in soup(["script", "style", "nav", "footer",
                           "header", "aside", "form", "iframe"]):
             tag.decompose()
@@ -126,25 +115,6 @@ def _extract_page_content(url: str, medicine_name: str = "") -> str:
 
         text = main_content.get_text(separator="\n", strip=True)
         lines = [line.strip() for line in text.splitlines() if line.strip()]
-
-        # Filter: keep only paragraphs that mention the medicine name
-        if medicine_name:
-            medicine_words = medicine_name.lower().split()
-            relevant_lines = []
-            for line in lines:
-                line_lower = line.lower()
-                # Keep lines mentioning the medicine or general medical terms
-                if (any(word in line_lower for word in medicine_words) or
-                    any(term in line_lower for term in [
-                        "side effect", "warning", "dosage", "storage",
-                        "used for", "treat", "consult", "doctor", "symptom",
-                        "indication", "precaution", "interaction"
-                    ])):
-                    relevant_lines.append(line)
-
-            # Use relevant lines if found, else fall back to all lines
-            lines = relevant_lines if len(relevant_lines) > 10 else lines
-
         return "\n".join(lines)[:MAX_CONTENT_CHARS]
 
     except Exception as e:
