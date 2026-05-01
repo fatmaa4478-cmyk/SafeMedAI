@@ -30,10 +30,7 @@ if st.button("🔍 Analyze Medicine"):
         st.stop()
 
     groq_api_key = os.getenv("GROQ_API_KEY", "")
-    
-    # Debug line - remove after confirming it works
-    st.write(f"DEBUG - Key found: {'✅ Yes - ' + groq_api_key[:8] + '...' if groq_api_key else '❌ No'}")
-    
+       
     if not groq_api_key:
         st.error("❌ GROQ_API_KEY not set.")
         st.stop()
