@@ -16,7 +16,7 @@ REQUEST_TIMEOUT = 10
 
 def search_medicine_info(medicine_name: str) -> str:
     """Search DuckDuckGo for medicine info from trusted sources."""
-    query = f"{medicine_name} medicine uses side effects warnings dosage"
+    query = f'"{medicine_name}" medicine uses side effects warnings dosage'
     urls = _duckduckgo_search(query)
     if not urls:
         urls = _duckduckgo_search(f"{medicine_name} drug information")
